@@ -1,0 +1,87 @@
+name: Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      create-tag:
+        description: 'If a new tag should be created and pushed'
+        required: true
+        default: true
+      upload-assets:
+        description: 'If new assets should be generated and uploaded'
+        required: true
+        default: true
+
+jobs:
+  push-tag:
+    runs-on: ubuntu-latest
+    outputs:
+      version_tag: ${{ steps.tag.outputs.version_tag }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Create and push new tag
+        id: tag
+        # https://github.com/rust-cli/meta/issues/33
+        # Thanks ashutoshrishi!
+        run: |
+          echo "Create tag: ${{ github.event.inputs.create-tag }}"
+          echo "Upload assets: ${{ github.event.inputs.upload-assets }}"
+          VERSION=$(awk -F ' = ' '$1 ~ /version/ { gsub(/[\"]/, "", $2); printf("%s",$2) }' Cargo.toml)
+          VERSION="v${VERSION}"
+          echo "Detected version: ${VERSION}"
+          if [[ "${{ github.event.inputs.create-tag }}" == "true" ]]
+          then
+            echo "Creating new tag"
+            git config --global user.name 'Emil Englesson'
+            git config --global user.email 'englesson.emil@gmail.com'
+            git tag -a ${VERSION} -m ''
+            git push origin refs/tags/${VERSION}
+          elif [[ "${{ github.event.inputs.create-tag }}" == "false" ]]
+          then
+            echo "Skipping creation of new tag"
+          else
+            echo "Invalid value: create-tag: ${{ github.event.inputs.create-tag }}"
+            echo "Aborting"
+            exit 1
+          fi
+          echo "::set-output name=version_tag::${VERSION}"
+
+  upload-assets:
+    if: ${{ github.event.inputs.upload-assets == 'true' }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          # TODO: Fix duplication of binary name
+          - os: ubuntu-latest
+            artifact_name: nauttaja # File name of cargo generated binary
+            asset_name: nauttaja-linux-amd64 # Name of asset uploaded to Github
+          - os: windows-latest
+            artifact_name: nauttaja.exe # File name of cargo generated binary
+            asset_name: nauttaja-windows-amd64 # Name of asset uploaded to Github
+          - os: macos-latest
+            artifact_name: nauttaja # File name of cargo generated binary
+            asset_name: nauttaja-macos-amd64 # Name of asset uploaded to Github
+
+    name: Upload assets for ${{ matrix.os }}
+    needs: push-tag
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install latest stable
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+    - name: Build
+      run: cargo build --release --locked
+    - name: Upload binary to release
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: target/release/${{ matrix.artifact_name }}
+        asset_name: ${{ matrix.asset_name }}
+        tag: ${{needs.push-tag.outputs.version_tag}}
+        release_name: ${{needs.push-tag.outputs.version_tag}}
