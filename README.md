@@ -44,9 +44,7 @@ To ensure smooth operation, only run this tool when you are sure that no other p
 
     This will open Noitas root directory in Windows explorer. Since this is dependent on Windows-specific functionality, this command will not work on other platforms.
 
-- **`nauttaja remove`**
-
-    This command is not yet implemented. If you want to manually delete saves, they are located at `~/.nauttaja/saves`.
+There is currently no way of removing saves with the tool. If you want to manually delete saves, they are located at `~/.nauttaja/saves`.
 
 ## Installation
 

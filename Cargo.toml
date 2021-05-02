@@ -1,6 +1,6 @@
 [package]
 name = "nauttaja"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Emil Englesson <englesson.emil@gmail.com>"]
 edition = "2018"
 publish = false

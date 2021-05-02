@@ -39,11 +39,6 @@ fn main() {
         )
         .subcommand(App::new("list").about("Lists all currently saved games"))
         .subcommand(
-            App::new("remove")
-                .about("TODO: Remove a saved game")
-                .arg(Arg::new("name").about("Name of the save to remove")),
-        )
-        .subcommand(
             App::new("set-noita-dir")
                 .about("Set path to Noitas root directory")
                 .arg(Arg::new("path").about("Path to Noitas root directory")),
@@ -96,18 +91,13 @@ fn main() {
         }
     } else if let Some(_) = matches.subcommand_matches("list") {
         list_games().unwrap();
-    } else if let Some(matches) = matches.subcommand_matches("remove") {
-        println!(
-            "TODO: Remove save with name: {:?}",
-            matches.value_of("name")
-        );
     } else {
         app.print_help().unwrap();
     }
 }
 
 fn save_game(config: &Config, save_name: &str) {
-    println!("Saving game with name: {}", save_name);
+    println!("Saving game with name [{}]", save_name);
     let work_dir = nauttaja_dir().expect("Failed to find home directory");
     let save_dir = work_dir.join(NAUTTAJA_SAVES_DIRECTORY).join(save_name);
     let time_file = save_dir.join(NAUTTAJA_TIMESTAMP_FILE);
@@ -125,18 +115,18 @@ fn save_game(config: &Config, save_name: &str) {
 
     copy_dir(noita_save_dir(config), save_dir).expect("Failed to copy save");
 
-    println!("Successfully saved game with name: {}", save_name)
+    println!("Successfully saved game with name [{}]", save_name)
 }
 
 fn load_game(config: &Config, save_name: &str) {
-    println!("Loading game with name: {}", save_name);
+    println!("Loading game with name [{}]", save_name);
 
     let work_dir = nauttaja_dir().expect("Failed to find home directory");
     let save_dir = work_dir.join(NAUTTAJA_SAVES_DIRECTORY).join(save_name);
     let backup_dir = work_dir.join(NAUTTAJA_LAST_REPLACED_DIRECTORY);
 
     if !save_dir.exists() {
-        println!("Failed to find save with name: {}", save_name);
+        println!("Failed to find save with name [{}]", save_name);
         return;
     }
 
@@ -145,8 +135,10 @@ fn load_game(config: &Config, save_name: &str) {
     }
     fs::create_dir(backup_dir.clone()).expect("Failed to create backup directory");
 
+    println!("Creating emergency backup...");
     copy_dir(noita_save_dir(config), backup_dir).expect("Failed to create emergency backup");
 
+    println!("Loading [{}]...", save_name);
     fs::remove_dir_all(noita_save_dir(config)).expect("Failed to remove last save");
 
     copy_dir(
