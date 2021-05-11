@@ -18,6 +18,8 @@ const NAUTTAJA_LAST_REPLACED_DIRECTORY: &str = "backup";
 const NAUTTAJA_TIMESTAMP_FILE: &str = "timestamp.txt";
 const NAUTTAJA_CONFIG_FILE: &str = "config.json";
 
+const CLI_SUBCMD_OPEN_OPTIONS: [&str; 2] = ["noita", "nauttaja"];
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct Config {
     noita_root_dir: String,
@@ -25,8 +27,17 @@ struct Config {
 
 fn main() {
     let mut app = App::new("nauttaja")
+        .version(crate_version!())
         .long_version(crate_version!())
-        .subcommand(App::new("open").about("Open the game directory for Noita in explorer"))
+        .subcommand(
+            App::new("open")
+                .about("Open the specified target in explorer")
+                .arg(
+                    Arg::new("target")
+                        .possible_values(&CLI_SUBCMD_OPEN_OPTIONS)
+                        .required(true),
+                ),
+        )
         .subcommand(
             App::new("save")
                 .about("Save the current game, with an optional custom name")
@@ -74,8 +85,17 @@ fn main() {
     }
     let config = config.unwrap();
 
-    if let Some(_) = matches.subcommand_matches("open") {
-        open_explorer_in(&config.noita_root_dir);
+    if let Some(matches) = matches.subcommand_matches("open") {
+        match matches.value_of("target").unwrap() {
+            "noita" => open_explorer_in(&config.noita_root_dir),
+            "nauttaja" => open_explorer_in(
+                nauttaja_dir()
+                    .expect("Failed to find home directory")
+                    .to_str()
+                    .expect("Path contains invalid UTF8"),
+            ),
+            _ => panic!("Unrecognized target"),
+        };
     } else if let Some(matches) = matches.subcommand_matches("save") {
         if let Some(name) = matches.value_of("name") {
             save_game(&config, name);

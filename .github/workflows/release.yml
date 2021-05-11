@@ -32,8 +32,8 @@ jobs:
           if [[ "${{ github.event.inputs.create-tag }}" == "true" ]]
           then
             echo "Creating new tag"
-            git config --global user.name 'Emil Englesson'
-            git config --global user.email 'englesson.emil@gmail.com'
+            git config --global user.name '${{ secrets.GIT_USERNAME }}'
+            git config --global user.email '${{ secrets.GIT_EMAIL }}'
             git tag -a ${VERSION} -m ''
             git push origin refs/tags/${VERSION}
           elif [[ "${{ github.event.inputs.create-tag }}" == "false" ]]
