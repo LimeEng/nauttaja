@@ -90,10 +90,7 @@ fn main() {
         .subcommand(
             App::new("delete")
                 .about("Permanently deletes the specified save")
-                .arg(
-                    Arg::new("name")
-                        .about("Name of the save to permanently delete"),
-                ),
+                .arg(Arg::new("name").about("Name of the save to permanently delete")),
         )
         .subcommand(
             App::new("import")

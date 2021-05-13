@@ -13,7 +13,32 @@ on:
         default: true
 
 jobs:
+  extract-info:
+    runs-on: ubuntu-latest
+    outputs:
+      crate_version: ${{ steps.info.outputs.crate_version }}
+      crate_name: ${{ steps.info.outputs.crate_name }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          repository: ${{ github.event.inputs.repo }}
+      - name: Extract info
+        id: info
+        # https://github.com/rust-cli/meta/issues/33
+        # Thanks ashutoshrishi!
+        run: |
+          CRATE_NAME=$(awk -F ' = ' '$1 ~ /name/ { gsub(/["]/, "", $2); printf("%s",$2) }' Cargo.toml)
+          CRATE_VERSION=$(awk -F ' = ' '$1 ~ /version/ { gsub(/["]/, "", $2); printf("%s",$2) }' Cargo.toml)
+          CRATE_VERSION="v${CRATE_VERSION}"
+
+          echo "Detected crate: ${CRATE_NAME}@${CRATE_VERSION}"
+
+          echo "::set-output name=crate_version::${CRATE_VERSION}"
+          echo "::set-output name=crate_name::${CRATE_NAME}"
+
   push-tag:
+    if: ${{ github.event.inputs.create-tag }} == "true"
+    needs: extract-info
     runs-on: ubuntu-latest
     outputs:
       version_tag: ${{ steps.tag.outputs.version_tag }}
@@ -24,14 +49,11 @@ jobs:
         # https://github.com/rust-cli/meta/issues/33
         # Thanks ashutoshrishi!
         run: |
-          echo "Create tag: ${{ github.event.inputs.create-tag }}"
-          echo "Upload assets: ${{ github.event.inputs.upload-assets }}"
-          VERSION=$(awk -F ' = ' '$1 ~ /version/ { gsub(/[\"]/, "", $2); printf("%s",$2) }' Cargo.toml)
-          VERSION="v${VERSION}"
-          echo "Detected version: ${VERSION}"
+          VERSION=${{needs.extract-info.outputs.crate_version}}
+
           if [[ "${{ github.event.inputs.create-tag }}" == "true" ]]
           then
-            echo "Creating new tag"
+            echo "Creating tag: ${VERSION}"
             git config --global user.name '${{ secrets.GIT_USERNAME }}'
             git config --global user.email '${{ secrets.GIT_EMAIL }}'
             git tag -a ${VERSION} -m ''
@@ -44,27 +66,27 @@ jobs:
             echo "Aborting"
             exit 1
           fi
+
           echo "::set-output name=version_tag::${VERSION}"
 
   upload-assets:
-    if: ${{ github.event.inputs.upload-assets == 'true' }}
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         include:
           # TODO: Fix duplication of binary name
           - os: ubuntu-latest
-            artifact_name: nauttaja # File name of cargo generated binary
-            asset_name: nauttaja-linux-amd64 # Name of asset uploaded to Github
+            artifact_name: ${{needs.extract-info.outputs.crate_name}} # File name of cargo generated binary
+            asset_name: ${{needs.extract-info.outputs.crate_name}}-${{needs.extract-info.outputs.crate_version}}-linux-amd64 # Name of asset uploaded to Github
           - os: windows-latest
-            artifact_name: nauttaja.exe # File name of cargo generated binary
-            asset_name: nauttaja-windows-amd64 # Name of asset uploaded to Github
+            artifact_name: ${{needs.extract-info.outputs.crate_name}}.exe # File name of cargo generated binary
+            asset_name: ${{needs.extract-info.outputs.crate_name}}-${{needs.extract-info.outputs.crate_version}}-windows-amd64 # Name of asset uploaded to Github
           - os: macos-latest
-            artifact_name: nauttaja # File name of cargo generated binary
-            asset_name: nauttaja-macos-amd64 # Name of asset uploaded to Github
+            artifact_name: ${{needs.extract-info.outputs.crate_name}} # File name of cargo generated binary
+            asset_name: ${{needs.extract-info.outputs.crate_name}}-${{needs.extract-info.outputs.crate_version}}-macos-amd64 # Name of asset uploaded to Github
 
     name: Upload assets for ${{ matrix.os }}
-    needs: push-tag
+    needs: [extract-info, push-tag]
     runs-on: ${{ matrix.os }}
 
     steps:
