@@ -56,9 +56,13 @@ To ensure smooth operation, only run this tool when you are sure that no other p
 
     This will list all removed saves, sorted by time created.
 
-- **`nauttaja open <noita|nauttaja>`**
+- **`nauttaja open`**
 
-    This will either open Noitas or nauttajas root directory in Windows explorer. Since this is dependent on Windows-specific functionality, this command will not work on other platforms.
+    This will open nauttajas root directory in Windows explorer. Since this is dependent on Windows-specific functionality, this command will not work on other platforms.
+
+- **`nauttaja open noita`**
+
+    This will open Noitas root directory in Windows explorer. Since this is dependent on Windows-specific functionality, this command will not work on other platforms.
 
 - **`nauttaja import <name> <path>`**
 

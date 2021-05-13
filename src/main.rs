@@ -18,8 +18,6 @@ const NAUTTAJA_SAVES_DIRECTORY: &str = "saves";
 const NAUTTAJA_LAST_REPLACED_DIRECTORY: &str = "backup";
 const NAUTTAJA_GAMEDB_FILE: &str = "gamedb.json";
 
-const CLI_SUBCMD_OPEN_OPTIONS: [&str; 2] = ["noita", "nauttaja"];
-
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
 struct Config {
     noita_root_dir: String,
@@ -45,11 +43,13 @@ fn main() {
         .long_version(crate_version!())
         .subcommand(
             App::new("open")
-                .about("Open the specified target in explorer")
+                .about("Open nauttajas root directory in explorer")
                 .arg(
-                    Arg::new("target")
-                        .possible_values(&CLI_SUBCMD_OPEN_OPTIONS)
-                        .required(true),
+                    Arg::new("noita")
+                        .about("Open noitas root directory in explorer")
+                        .index(1)
+                        .possible_value("noita")
+                        .required(false),
                 ),
         )
         .subcommand(
@@ -134,17 +134,16 @@ fn main() {
     let gamedb = gamedb.unwrap();
 
     if let Some(matches) = matches.subcommand_matches("open") {
-        match matches.value_of("target").unwrap() {
-            // Required argument
-            "noita" => open_explorer_in(&gamedb.config.noita_root_dir),
-            "nauttaja" => open_explorer_in(
+        if matches.is_present("noita") {
+            open_explorer_in(&gamedb.config.noita_root_dir);
+        } else {
+            open_explorer_in(
                 nauttaja_dir()
                     .expect("Failed to find home directory")
                     .to_str()
                     .expect("Path contains invalid UTF8"),
-            ),
-            _ => panic!("Unrecognized target"),
-        };
+            );
+        }
     } else if let Some(matches) = matches.subcommand_matches("save") {
         let name = matches.value_of("name").unwrap(); // Required argument
         save_game(&gamedb.config, name).expect("Failed to save game");
