@@ -68,8 +68,6 @@ To ensure smooth operation, only run this tool when you are sure that no other p
 
     It can be useful to import external directories as if they were saved from Noitas game directory. This command imports the specified directory and saves it as a normal save with the specified name.
 
-There is currently no way of removing saves with the tool. If you want to manually delete saves, they are located at `~/.nauttaja/saves`.
-
 ## Installation
 
 To use the tool, you can download a pre-built binary from the [releases-page](https://github.com/LimeEng/nauttaja/releases). Do note that Noita is only officially supported on Windows.
