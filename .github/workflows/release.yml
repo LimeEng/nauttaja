@@ -37,7 +37,6 @@ jobs:
           echo "::set-output name=crate_name::${CRATE_NAME}"
 
   push-tag:
-    if: ${{ github.event.inputs.create-tag }} == "true"
     needs: extract-info
     runs-on: ubuntu-latest
     outputs:
