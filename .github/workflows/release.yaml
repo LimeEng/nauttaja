@@ -1,0 +1,57 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Create new release
+        run: |
+          cargo install cargo-extract
+          VERSION=v$(cargo extract package.version)
+          echo "Creating release: ${VERSION}"
+          gh release create ${VERSION} --title ${VERSION}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  upload-assets:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: windows-latest
+            extension: ".exe"
+
+    name: Upload assets for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    needs: release
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build
+        run: cargo build --release --locked
+      - name: Upload binary
+        shell: bash
+        run: |
+          cargo install cargo-extract
+          CRATE_NAME=$(cargo extract package.name)
+          CRATE_VERSION=v$(cargo extract package.version)
+          ARCH_TRIPLE=$(cargo extract --arch)
+
+          OUTPUT_FILENAME="${CRATE_NAME}-${ARCH_TRIPLE}${{ matrix.extension }}"
+          mv "target/release/${CRATE_NAME}${{ matrix.extension }}" "$OUTPUT_FILENAME"
+
+          echo "${CRATE_NAME}@{CRATE_VERSION} (${ARCH_TRIPLE})"
+          echo "Uploading ${OUTPUT_FILENAME}..."
+
+          gh release upload ${CRATE_VERSION} ${OUTPUT_FILENAME}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

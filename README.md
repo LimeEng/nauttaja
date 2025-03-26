@@ -1,4 +1,4 @@
-![CI status](https://github.com/LimeEng/nauttaja/workflows/CI/badge.svg)
+[![CI status](https://github.com/LimeEng/nauttaja/actions/workflows/ci.yaml/badge.svg)](https://github.com/LimeEng/nauttaja/actions/workflows/ci.yaml)
 
 # Nauttaja
 

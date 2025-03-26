@@ -1,19 +1,32 @@
-use crate::{
-    archive::{self, Metadata},
-    config::Config,
-};
+use crate::config::Config;
 use std::{
+    env,
     ffi::OsStr,
     fs::{self, File},
     io,
     path::PathBuf,
     process::{self, Stdio},
 };
+use time::{OffsetDateTime, macros::format_description};
+
+mod archive;
+
+pub use archive::Metadata;
 
 const NAUTTAJA_DIRECTORY: &str = ".nauttaja2";
 const NAUTTAJA_CONFIG: &str = "config.json";
 const NAUTTAJA_SAVES_DIRECTORY: &str = "saves";
 const NAUTTAJA_LAST_REPLACED_DIRECTORY: &str = "backup";
+
+pub struct Save {
+    path: PathBuf,
+}
+
+impl Save {
+    pub fn metadata(&self) -> io::Result<Metadata> {
+        archive::extract_metadata(File::open(&self.path)?)
+    }
+}
 
 pub struct Storage {
     pub config: Config,
@@ -30,10 +43,30 @@ impl Storage {
         Self { config }
     }
 
-    pub fn save_as(&self, filename: &str, metadata: Metadata) -> io::Result<()> {
+    pub fn save_as(&self, name: Option<String>) -> io::Result<()> {
+        let format = format_description!("[year]-[month]-[day] [hour].[minute].[second]");
+        let timestamp = OffsetDateTime::now_local().unwrap_or_else(|_| OffsetDateTime::now_utc());
+
+        let metadata = Metadata { name, timestamp };
+        let timestamp = &timestamp.format(format).expect("Failed to format time");
+
         let nauttaja_dir = nauttaja_directory().unwrap();
-        let file = File::create_new(nauttaja_dir.join(filename))?;
-        archive::bundle(self.config.active_save_path(), file, &metadata)
+        let file = File::create_new(nauttaja_dir.join(timestamp))?;
+        archive::bundle(self.config.active_save_path(), file, Some(metadata))
+    }
+
+    pub fn backup_current_save(&self) -> io::Result<()> {
+        let format = format_description!("[year]-[month]-[day] [hour].[minute].[second]");
+        let timestamp = OffsetDateTime::now_local().unwrap_or_else(|_| OffsetDateTime::now_utc());
+        let timestamp = &timestamp.format(format).expect("Failed to format time");
+
+        let nauttaja_dir = nauttaja_directory().unwrap();
+
+        let path = nauttaja_dir
+            .join(NAUTTAJA_LAST_REPLACED_DIRECTORY)
+            .join(timestamp);
+        let file = File::create_new(path)?;
+        archive::bundle(self.config.active_save_path(), file, None)
     }
 
     pub fn load(&self, filename: &str) -> io::Result<()> {
@@ -53,6 +86,23 @@ impl Storage {
             .ok_or_else(|| io::Error::from(io::ErrorKind::NotFound))?;
         fs::create_dir_all(parent)?;
         fs::write(config_path, json)
+    }
+
+    pub fn saves(&self) -> io::Result<Vec<Save>> {
+        let saves_path = nauttaja_directory().unwrap().join(NAUTTAJA_SAVES_DIRECTORY);
+
+        fs::read_dir(saves_path)?
+            .filter_map(Result::ok)
+            .filter(|entry| {
+                if let Ok(metadata) = entry.metadata() {
+                    metadata.is_file()
+                        && entry.path().extension().is_some_and(|ext| ext == "tar.gz")
+                } else {
+                    false
+                }
+            })
+            .map(|entry| Ok(Save { path: entry.path() }))
+            .collect()
     }
 
     // pub fn saves() -> Vec<PathBuf> {
@@ -100,7 +150,7 @@ impl Storage {
 }
 
 fn nauttaja_directory() -> Option<PathBuf> {
-    home::home_dir().map(|home_dir| home_dir.as_path().join(NAUTTAJA_DIRECTORY))
+    env::home_dir().map(|home_dir| home_dir.as_path().join(NAUTTAJA_DIRECTORY))
 }
 
 fn config_path() -> Option<PathBuf> {

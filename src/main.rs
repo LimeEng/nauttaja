@@ -1,10 +1,12 @@
-use clap::{crate_name, crate_version, Arg, ArgMatches, Command};
-use nauttaja::{archive::Metadata, storage::Storage};
-use time::{macros::format_description, OffsetDateTime};
+use clap::{Arg, ArgMatches, Command, crate_name, crate_version};
+use nauttaja::storage::Storage;
 
 fn main() {
     let mut app = Command::new(crate_name!())
         .version(crate_version!())
+        .long_version(crate_version!())
+        .arg_required_else_help(true)
+        .about("Noita save management")
         .subcommand(
             Command::new("save").about("Save the current game").arg(
                 Arg::new("name")
@@ -38,41 +40,55 @@ fn main() {
     let storage = Storage::new();
 
     match matches.subcommand() {
-        Some(("save", matches)) => save(storage, matches.get_one::<String>("name").cloned()),
+        Some(("save", matches)) => save(&storage, matches.get_one::<String>("name").cloned()),
         Some(("load", matches)) => load(
-            storage,
+            &storage,
             matches
                 .get_one::<String>("name")
                 .expect("Filename is mandatory"),
         ),
         Some(("list", _unused)) => list(storage),
-        Some(("open", matches)) => open(storage, matches),
+        Some(("open", matches)) => open(&storage, matches),
         _ => app.print_help().unwrap(),
     };
 }
 
-fn save(storage: Storage, name: Option<String>) {
-    let format = format_description!("[year]-[month]-[day] [hour].[minute].[second]");
-    let timestamp = OffsetDateTime::now_utc();
-    let metadata = Metadata {
-        name,
-        notes: None,
-        timestamp,
-    };
-
-    let _ = storage.save_as(
-        &timestamp.format(format).expect("Failed to format time"),
-        metadata,
-    );
+fn save(storage: &Storage, name: Option<String>) {
+    let _ = storage.save_as(name);
 }
 
-fn load(storage: Storage, filename: &str) {
+fn load(storage: &Storage, filename: &str) {
+    println!("Creating emergency backup...");
+    storage.backup_current_save().unwrap();
+    println!("Backup created");
+    println!("Loading");
     let _ = storage.load(filename);
 }
 
-fn list(_storage: Storage) {}
+fn list(storage: Storage) {
+    // let t:Vec<_> = storage
+    //     .saves()
+    //     .iter()
+    //     .flat_map(|saves| saves.iter().map(|save| save.metadata())).collect();
 
-fn open(storage: Storage, matches: &ArgMatches) {
+    let saves: Result<Vec<_>, _> = storage
+        .saves()
+        .and_then(|saves| saves.iter().map(|save| save.metadata()).collect());
+
+    todo!()
+    // match storage.saves() {
+    //     Ok(saves) => {
+    //         gamedb.saves.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+
+    //         gamedb.saves.iter().for_each(|save| {
+    //             println!("{} - {}", save.timestamp, save.name);
+    //         });
+    //     }
+    //     Err(_) => println!("Failed to list saves"),
+    // }
+}
+
+fn open(storage: &Storage, matches: &ArgMatches) {
     let status = match matches.get_one::<String>("noita").cloned() {
         Some(_) => storage.open_noita_folder(),
         None => storage.open_nauttaja_folder(),

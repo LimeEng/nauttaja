@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::{
+    env,
+    path::{Path, PathBuf},
+};
 
 const NOITA_SAVE_DIRECTORY: &str = "save00";
 
@@ -11,33 +14,31 @@ const NAUTTAJA_CONFIG: &str = "config.json";
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Config {
-    pub noita_root_dir: String,
+    pub noita_root_dir: PathBuf,
     pub open_folder_program: String,
-    pub nauttaja_dir: String,
-    pub nauttaja_config_file: String,
-    pub noita_save_folder_name: String,
+    pub nauttaja_dir: PathBuf,
+    pub nauttaja_config_file: PathBuf,
+    pub noita_save_folder_name: PathBuf,
 }
 
 impl Config {
     #[must_use]
     fn new() -> Self {
-        let home_dir = home::home_dir().expect("Failed to get home directory");
+        let home_dir = env::home_dir().expect("Failed to get home directory");
         let noita_root_dir = home_dir
             .join("Appdata")
             .join("LocalLow")
-            .join("Nolla_Games_Noita")
-            .to_string_lossy()
-            .to_string();
+            .join("Nolla_Games_Noita");
 
-        let nauttaja_dir = home_dir.join(".nauttaja").to_string_lossy().to_string();
-        let nauttaja_config_file = home_dir.join("config.json").to_string_lossy().to_string();
+        let nauttaja_dir = home_dir.join(".nauttaja");
+        let nauttaja_config_file = home_dir.join("config.json");
 
         Self {
             noita_root_dir,
             open_folder_program: "explorer".to_string(),
             nauttaja_dir,
             nauttaja_config_file,
-            noita_save_folder_name: "save00".to_string(),
+            noita_save_folder_name: Path::new("save00").to_path_buf(),
         }
     }
 
@@ -60,7 +61,7 @@ impl Config {
 
     #[must_use]
     pub fn active_save_path(&self) -> PathBuf {
-        Path::new(&self.noita_root_dir).join(NOITA_SAVE_DIRECTORY)
+        self.noita_root_dir.join(NOITA_SAVE_DIRECTORY)
     }
 }
 
